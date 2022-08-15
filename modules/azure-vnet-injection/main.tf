@@ -1,17 +1,9 @@
 /**
- * Azure Databricks workspace in custom VNet
- *
- * Module creates:
- * * Resource group with random prefix
- * * Tags, including `Owner`, which is taken from `az account show --query user`
- * * VNet with public and private subnet
- * * Databricks workspace
+ * End-to-end Azure Databricks workspace in VNet
  */
+
 provider "azurerm" {
   features {}
-}
-
-provider "random" {
 }
 
 resource "random_string" "naming" {
@@ -31,9 +23,9 @@ variable "cidr" {}
 
 locals {
   // dltp - databricks labs terraform provider
-  prefix   = "dltp${random_string.naming.result}"
+  prefix = "dltp${random_string.naming.result}"
   location = "eastus"
-  cidr     = var.cidr
+  cidr   = var.cidr
   // tags that are propagated down to all resources
   tags = {
     Environment = "Testing"
@@ -42,7 +34,7 @@ locals {
   }
 }
 
-resource "azurerm_resource_group" "this" {
+resource "azurerm_resource_group" "example" {
   name     = "${local.prefix}-rg"
   location = local.location
   tags     = local.tags
@@ -65,5 +57,5 @@ output "azure_region" {
 }
 
 output "test_resource_group" {
-  value = azurerm_resource_group.this.name
+  value = azurerm_resource_group.example.name
 }
