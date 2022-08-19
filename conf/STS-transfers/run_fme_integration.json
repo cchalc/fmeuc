@@ -1,0 +1,51 @@
+{
+    "job_id": 913703579442110,
+    "creator_user_name": "christopher.chalcraft@databricks.com",
+    "run_as_user_name": "christopher.chalcraft@databricks.com",
+    "run_as_owner": true,
+    "settings": {
+        "name": "run_fme_ingestion",
+        "email_notifications": {
+            "on_failure": [
+                "christopher.chalcraft@databricks.com"
+            ],
+            "no_alert_for_skipped_runs": true
+        },
+        "timeout_seconds": 0,
+        "max_concurrent_runs": 1,
+        "tasks": [
+            {
+                "task_key": "run_fme_ingestion",
+                "depends_on": [
+                    {
+                        "task_key": "mount_storage"
+                    }
+                ],
+                "notebook_task": {
+                    "notebook_path": "proj/STS-transfers/00. Data Prep from FME",
+                    "source": "GIT"
+                },
+                "existing_cluster_id": "0815-072853-73cwse0s",
+                "timeout_seconds": 0,
+                "email_notifications": {}
+            },
+            {
+                "task_key": "mount_storage",
+                "notebook_task": {
+                    "notebook_path": "proj/resources/storage",
+                    "source": "GIT"
+                },
+                "existing_cluster_id": "0815-072853-73cwse0s",
+                "timeout_seconds": 0,
+                "email_notifications": {}
+            }
+        ],
+        "git_source": {
+            "git_url": "https://github.com/cchalc/fmeuc",
+            "git_provider": "gitHub",
+            "git_commit": "2aeaf2835a0d0cf6b950975ce6818cd5842ab399"
+        },
+        "format": "MULTI_TASK"
+    },
+    "created_time": 1660893277820
+}
