@@ -5,6 +5,10 @@
 
 import mosaic as mos
 from pyspark.sql.functions import *
+from pyspark.sql import DataFrame, Row
+from delta.tables import *
+import random
+import string
 
 spark.conf.set("spark.databricks.labs.mosaic.geometry.api", "ESRI")
 spark.conf.set("spark.databricks.labs.mosaic.index.system", "H3")
@@ -12,22 +16,23 @@ mos.enable_mosaic(spark, dbutils)
 
 # COMMAND ----------
 
+# MAGIC %sql
+# MAGIC CREATE DATABASE IF NOT EXISTS ship2ship
+
+# COMMAND ----------
+
 # MAGIC %md ##AIS Data
 
 # COMMAND ----------
 
-dbutils.fs.mkdirs("/tmp/ship2ship")
-
-# COMMAND ----------
-
-# MAGIC %sh
-# MAGIC # see: https://coast.noaa.gov/htdata/CMSP/AISDataHandler/2018/index.html
-# MAGIC # we download data to dbfs:// mountpoint (/dbfs)
-# MAGIC mkdir /ship2ship/
-# MAGIC cd /ship2ship/
-# MAGIC wget -np -r -nH -L --cut-dirs=4 https://coast.noaa.gov/htdata/CMSP/AISDataHandler/2018/AIS_2018_01_31.zip > /dev/null 2>&1
-# MAGIC unzip AIS_2018_01_31.zip
-# MAGIC mv AIS_2018_01_31.csv /dbfs/tmp/ship2ship/
+# Create a unique database sufix to reuse this notebook
+suffix_db = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(10))
+proj = "ship2ship"
+dbutils.fs.mkdirs(f"/tmp/{proj}")
+# Create checkpoints
+checkpoints_dir = f"/tmp/{proj}/checkpoints_{suffix_db}"
+dbutils.fs.rm(checkpoints_dir, True)
+dbutils.fs.mkdirs(checkpoints_dir)
 
 # COMMAND ----------
 
@@ -51,21 +56,54 @@ schema = """
   TranscieverClass string
 """
 
+# COMMAND ----------
+
+# Read with Auto Loader
+def autoload_to_table(data_source, source_format, table_name, checkpoint_directory):
+    query = (spark.readStream
+             .format("cloudFiles")
+             .option("cloudFiles.format", source_format)
+             .option("cloudFiles.schemaLocation", checkpoint_directory)
+             .schema(schema)
+             .load(data_source)
+             .writeStream
+             .option("checkpointLocation", checkpoint_directory)
+             .option("mergeSchema", "true")
+             .outputMode("append")
+             .trigger(once=True)
+             .table(table_name)
+            )
+    return query
+
+# COMMAND ----------
+
+query = autoload_to_table(data_source = f"/mnt/dev",
+                          source_format = "csv",
+                          table_name = "AIS",
+                          checkpoint_directory = checkpoints_dir,
+                         )
+
+# COMMAND ----------
+
+# FME job needs to be run in order to generate CSV
+# make sure that the ../resources/storage.py is run before to mount storage
+ais_path = "/mnt/dev/ais_raw.csv"
+
 AIS_df = (
-    spark.read.csv("/tmp/ship2ship", header=True, schema=schema)
-    .filter("VesselType = 70")  # Only select cargos
-    .filter("Status IS NOT NULL")
+    spark.read.csv(ais_path, header=True, schema=schema)
 )
 display(AIS_df)
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC CREATE DATABASE IF NOT EXISTS ship2ship
+# (AIS_df.write.format("delta").mode("overwrite").saveAsTable("ship2ship.AIS"))
 
 # COMMAND ----------
 
-(AIS_df.write.format("delta").mode("overwrite").saveAsTable("ship2ship.AIS"))
+ais_from_table_df = (
+    spark.read.table("ship2ship.ais")
+)
+display(ais_from_table_df)
 
 # COMMAND ----------
 
@@ -129,3 +167,7 @@ display(harbours_h3)
 
 # MAGIC %%mosaic_kepler
 # MAGIC "harbours_h3" "h3" "h3" 5_000
+
+# COMMAND ----------
+
+

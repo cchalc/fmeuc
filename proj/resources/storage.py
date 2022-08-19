@@ -14,7 +14,8 @@ ACCOUNT_KEY = dbutils.secrets.get(scope='fmeuc_scope', key='storage-account-acce
 
 DIRECTORY = "/"
 
-for layer in ["bronze", "silver", "gold"]:
+#for layer in ["bronze", "silver", "gold"]:
+for layer in ["dev"]:
   MOUNT_PATH = f"/mnt/{layer}"
 
   try:
@@ -30,4 +31,4 @@ for layer in ["bronze", "silver", "gold"]:
 
 # COMMAND ----------
 
-# MAGIC %fs ls /mnt/bronze
+# MAGIC %fs ls /mnt/dev
